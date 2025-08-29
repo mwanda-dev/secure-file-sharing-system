@@ -37,7 +37,7 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
         false,
         ['encrypt', 'decrypt']
     );
-}}
+}
 
 export async function hashKey(key: CryptoKey): Promise<ArrayBuffer> {
     const exported = await crypto.subtle.exportKey('raw', key);
