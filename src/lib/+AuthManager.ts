@@ -1,17 +1,27 @@
-import { invoke } from "@tauri-apps/api/core";
+import { Store } from "@tauri-apps/plugin-store";
 import { get, writable } from "svelte/store";
 
-const isAuthenticated = writable(false);
+export const isAuthenticated = writable(false);
 
 const STORE_KEY_SALT = 'auth.salt';
 const STORE_KEY_HASH = 'auth.hash';
 
+export let store: Store | null = null;
+
+export async function initialiseStore(): Promise<void> {
+    store = await Store.load('authentication.json');
+}
+
 async function getStoreValue(key: string): Promise<Uint8Array | null> {
-    return invoke('plugin:store|get', { key }).then((val: any) => val ? new Uint8Array(Object.values(val)) : null);
+    if (!store) throw new Error("Store not initialised");
+    const result = await store.get(key);
+    return result ? new Uint8Array(Object.values(result as object)) : null;
 }
 
 async function setStoreValue(key: string, value: Uint8Array): Promise<void> {
-    await invoke('plugin:store|set', { key, value: Array.from(value) })
+    if (!store) throw new Error("Store not initialised");
+    await store.set(key, Array.from(value));
+    await store.save();
 }
 
 export async function generateSalt(): Promise<Uint8Array> {
@@ -34,7 +44,7 @@ export async function deriveKey(password: string, salt: Uint8Array): Promise<Cry
         pbkdf2Params,
         baseKey,
         { name: 'AES-GCM', length: 256 },
-        false,
+        true,
         ['encrypt', 'decrypt']
     );
 }
