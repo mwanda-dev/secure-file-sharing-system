@@ -7,17 +7,18 @@
     store,
   } from "../lib/+AuthManager";
   import { isAuthenticated } from "../lib/+AuthManager";
+  import { message } from "@tauri-apps/plugin-dialog";
   import { listen } from "@tauri-apps/api/event";
 
-  let title = "Hello Secure File Sharing";
+  let title = "Secure File Sharing System";
 
   let password = $state("");
-  let message = $state("");
+  let status = $state("");
   let showLogin = $state(false);
 
   onMount(async () => {
     await initialiseStore();
-    let salt = await store?.get("auth.json");
+    let salt = await store?.get("auth.salt");
     showLogin = !!salt;
   });
 
@@ -25,25 +26,25 @@
     try {
       if (showLogin) {
         const success = await verifyPassword(password);
-        message = success ? "Logged in!" : "Wrong password";
+        status = success ? "Logged in!" : "Wrong password";
+        await message("Login successful!");
         if (success) {
-          alert("Login successful!");
           showLogin = false;
         } else {
-          alert("Login failed: Wrong password");
+          await message("Login failed: Wrong password");
         }
       } else {
         await setupPassword(password);
-        message = "Password set!";
-        alert("Setup successful!");
+        status = "Password set!";
+        await message("Setup successful!");
         showLogin = true;
       }
       password = "";
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "An unkown error has occured";
-      message = "Error: " + errorMessage;
-      alert("Error during auth: " + errorMessage);
+      status = "Error: " + errorMessage;
+      await message("Error during auth: " + errorMessage);
     }
   }
 </script>
@@ -51,14 +52,15 @@
 <main>
   <h1>{title}</h1>
   {#if $isAuthenticated}
-    <h2>Greetings from Secure Share - You are authenticated</h2>
+    <h2>Welcome to Secure Share</h2>
+    <h3>You are now authenticated</h3>
   {:else}
     <h2>{showLogin ? "Login" : "Set Password"}</h2>
     <input type="password" bind:value={password} />
     <button onclick={handleSubmit}
       >{showLogin ? "Login" : "Set Password"}</button
     >
-    <p>{message}</p>
+    <p>{status}</p>
   {/if}
 </main>
 
