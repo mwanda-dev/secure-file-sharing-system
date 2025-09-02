@@ -8,8 +8,13 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "dialog:default",
     "core:event:default",
-    "store:default",
-    "dialog:default"
+    "fs:allow-read-file",
+    "store:allow-load",
+    "store:allow-save",
+    "store:allow-get",
+    "store:allow-set",
+    "store:allow-length"
   ]
 }
