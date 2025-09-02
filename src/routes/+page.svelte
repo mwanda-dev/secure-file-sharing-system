@@ -32,6 +32,7 @@
           showLogin = false;
         } else {
           await message("Login failed: Wrong password");
+          status = "Login failed: Wrong password";
         }
       } else {
         await setupPassword(password);
@@ -42,7 +43,12 @@
       password = "";
     } catch (error: unknown) {
       const errorMessage =
-        error instanceof Error ? error.message : "An unkown error has occured";
+        // Teh error might not be of the type Error
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : JSON.stringify(error) || "An unknown error has occured";
       status = "Error: " + errorMessage;
       await message("Error during auth: " + errorMessage);
     }
