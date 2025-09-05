@@ -28,9 +28,9 @@
       if (showLogin) {
         const success = await verifyPassword(password);
         status = success ? "Logged in!" : "Wrong password";
-        await message("Login successful!");
         if (success) {
           showLogin = false;
+          await message("Login successful!");
         } else {
           await message("Login failed: Wrong password");
           status = "Login failed: Wrong password";
