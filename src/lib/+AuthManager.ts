@@ -1,4 +1,5 @@
 import { Store } from "@tauri-apps/plugin-store";
+import { expoOut } from "svelte/easing";
 import { get, writable } from "svelte/store";
 
 export const isAuthenticated = writable(false);
@@ -79,4 +80,11 @@ export async function verifyPassword(password: string): Promise<boolean> {
         hashView.every((val, idx) => val === storedView[idx]);
     if (match) isAuthenticated.set(true);
     return match;
+}
+
+export async function exportDerivedKeyy(password: string, salt: Uint8Array): Promise<Uint8Array> {
+    const key = await deriveKey(password, salt);
+
+    const exported = await crypto.subtle.exportKey('raw', key);
+    return new Uint8Array(exported);
 }

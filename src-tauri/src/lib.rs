@@ -1,5 +1,3 @@
-use tauri_plugin_dialog::DialogExt;
-
 #[tauri::command]
 async fn encrypt_file(path: String, key_bytes: Vec<u8>) -> Result<(Vec<u8>, String), String> {
     use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
