@@ -82,7 +82,7 @@ export async function verifyPassword(password: string): Promise<boolean> {
     return match;
 }
 
-export async function exportDerivedKeyy(password: string, salt: Uint8Array): Promise<Uint8Array> {
+export async function exportDerivedKey(password: string, salt: Uint8Array): Promise<Uint8Array> {
     const key = await deriveKey(password, salt);
 
     const exported = await crypto.subtle.exportKey('raw', key);

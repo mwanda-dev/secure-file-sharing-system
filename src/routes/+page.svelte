@@ -8,7 +8,8 @@
   } from "../lib/+AuthManager";
   import { isAuthenticated } from "../lib/+AuthManager";
   import { message } from "@tauri-apps/plugin-dialog";
-  import { listen } from "@tauri-apps/api/event";
+  import { uploadAndEncrypt } from "$lib/+FileManger";
+  import { exportDerivedKey } from "../lib/+AuthManager";
 
   let title = "Secure File Sharing System";
 
