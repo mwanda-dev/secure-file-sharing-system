@@ -78,7 +78,7 @@
       const keyBytes = await exportDerivedKey(password, salt);
       const result = await uploadAndEncrypt(keyBytes);
       console.log(result);
-      shareCode = result.shareCode;
+      shareCode = result.share_code;
       await message(`File encrypted! Share code: ${shareCode}`);
     } catch (error) {
       const errorMessage =
