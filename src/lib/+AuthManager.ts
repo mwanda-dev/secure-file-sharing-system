@@ -13,7 +13,7 @@ export async function initialiseStore(): Promise<void> {
     store = await Store.load('authentication.json');
 }
 
-async function getStoreValue(key: string): Promise<Uint8Array | null> {
+export async function getStoreValue(key: string): Promise<Uint8Array | null> {
     if (!store) throw new Error("Store not initialised");
     const result = await store.get(key);
     return result ? new Uint8Array(Object.values(result as object)) : null;

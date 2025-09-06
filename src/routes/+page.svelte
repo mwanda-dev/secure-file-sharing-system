@@ -9,13 +9,16 @@
   import { isAuthenticated } from "../lib/+AuthManager";
   import { message } from "@tauri-apps/plugin-dialog";
   import { uploadAndEncrypt } from "$lib/+FileManger";
-  import { exportDerivedKey } from "../lib/+AuthManager";
+  import { exportDerivedKey, getStoreValue } from "../lib/+AuthManager";
+  import Swal from "sweetalert2";
 
   let title = "Secure File Sharing System";
 
   let password = $state("");
   let status = $state("");
   let showLogin = $state(false);
+
+  let shareCode = $state("");
 
   onMount(async () => {
     await initialiseStore();
@@ -44,7 +47,7 @@
       password = "";
     } catch (error: unknown) {
       const errorMessage =
-        // Teh error might not be of the type Error
+        // The error might not be of the type Error
         error instanceof Error
           ? error.message
           : typeof error === "string"
@@ -54,16 +57,53 @@
       await message("Error during auth: " + errorMessage);
     }
   }
+
+  async function handleUpload() {
+    try {
+      const salt = await getStoreValue("auth.salt");
+      if (!salt) throw new Error("Not authenticated");
+      // No prompt in plugin-dialog
+      const { value: password } = await Swal.fire({
+        title: "Enter your password",
+        input: "password",
+        inputLabel: "Password",
+        inputPlaceholder: "Enter your password",
+        inputAttributes: {
+          maxlength: "64",
+          autocapitalize: "off",
+          autocorrect: "off",
+        },
+      });
+      if (!password) throw new Error("Password is required for key export");
+      const keyBytes = await exportDerivedKey(password, salt);
+      const result = await uploadAndEncrypt(keyBytes);
+      console.log(result);
+      shareCode = result.shareCode;
+      await message(`File encrypted! Share code: ${shareCode}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : JSON.stringify(error) || "An unknown error has occured";
+      status = "Error: " + errorMessage;
+      await message("Error: " + errorMessage);
+    }
+  }
 </script>
 
 <main>
   <h1>{title}</h1>
   {#if $isAuthenticated}
     <h2>Welcome to Secure Share</h2>
-    <h3>You are now authenticated</h3>
+    <button onclick={handleUpload}>Upload and Encrypt</button>
+    {#if shareCode}
+      <p>Share Code: {shareCode}</p>
+    {/if}
   {:else}
     <h2>{showLogin ? "Login" : "Set Password"}</h2>
-    <input type="password" bind:value={password} />
+    <input type="password" bind:value={password} maxlength="64" />
     <button onclick={handleSubmit}
       >{showLogin ? "Login" : "Set Password"}</button
     >
