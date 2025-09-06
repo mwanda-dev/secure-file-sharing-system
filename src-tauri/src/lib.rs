@@ -1,5 +1,13 @@
+use base64::Engine;
+
+#[derive(serde::Serialize)]
+struct EncryptedFileResult {
+    encrypted: String,
+    share_code: String,
+}
+
 #[tauri::command]
-async fn encrypt_file(path: String, key_bytes: Vec<u8>) -> Result<(Vec<u8>, String), String> {
+async fn encrypt_file(path: String, key_bytes: Vec<u8>) -> Result<EncryptedFileResult, String> {
     use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
     use ring::rand::{SecureRandom, SystemRandom};
     use std::fs::read;
@@ -25,9 +33,13 @@ async fn encrypt_file(path: String, key_bytes: Vec<u8>) -> Result<(Vec<u8>, Stri
     key.seal_in_place_append_tag(nonce, aad, &mut in_out)
         .map_err(|error| error.to_string())?;
 
+    let encrypted_base64 = base64::engine::general_purpose::STANDARD.encode(&in_out);
     let share_code = Uuid::new_v4().to_string();
 
-    Ok((in_out, share_code))
+    Ok(EncryptedFileResult {
+        encrypted: encrypted_base64,
+        share_code,
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
