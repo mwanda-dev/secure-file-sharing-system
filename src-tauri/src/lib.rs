@@ -14,6 +14,7 @@ async fn encrypt_file(path: String, key_bytes: Vec<u8>) -> Result<EncryptedFileR
     use uuid::Uuid;
 
     let data = read(path).map_err(|error| error.to_string())?;
+    println!("{:?}", data);
     let mut in_out = data.clone();
 
     let unbound_key =
@@ -33,7 +34,11 @@ async fn encrypt_file(path: String, key_bytes: Vec<u8>) -> Result<EncryptedFileR
     key.seal_in_place_append_tag(nonce, aad, &mut in_out)
         .map_err(|error| error.to_string())?;
 
-    let encrypted_base64 = base64::engine::general_purpose::STANDARD.encode(&in_out);
+    let mut final_data = vec![];
+    final_data.extend_from_slice(&nonce_bytes);
+    final_data.extend_from_slice(&in_out);
+
+    let encrypted_base64 = base64::engine::general_purpose::STANDARD.encode(&final_data);
     let share_code = Uuid::new_v4().to_string();
 
     Ok(EncryptedFileResult {
