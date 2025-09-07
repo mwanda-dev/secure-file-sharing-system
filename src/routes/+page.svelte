@@ -11,6 +11,7 @@
   import { uploadAndEncrypt } from "$lib/+FileManger";
   import { exportDerivedKey, getStoreValue } from "../lib/+AuthManager";
   import Swal from "sweetalert2";
+  import { storeAndShare, downloadAndDecrypt } from "$lib/+FileManger";
 
   let title = "Secure File Sharing System";
 
@@ -19,6 +20,7 @@
   let showLogin = $state(false);
 
   let shareCode = $state("");
+  let downloadCode = $state("");
 
   onMount(async () => {
     await initialiseStore();
@@ -77,9 +79,39 @@
       if (!password) throw new Error("Password is required for key export");
       const keyBytes = await exportDerivedKey(password, salt);
       const result = await uploadAndEncrypt(keyBytes);
+      await storeAndShare(result.encrypted, result.share_code);
       console.log(result);
       shareCode = result.share_code;
       await message(`File encrypted! Share code: ${shareCode}`);
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : typeof error === "string"
+            ? error
+            : JSON.stringify(error) || "An unknown error has occured";
+      status = "Error: " + errorMessage;
+      await message("Error: " + errorMessage);
+    }
+  }
+
+  async function handleDownload() {
+    try {
+      const salt = await getStoreValue("auth.salt");
+      const { value: password } = await Swal.fire({
+        title: "Enter your password",
+        input: "password",
+        inputLabel: "Password",
+        inputPlaceholder: "Enter your password",
+        inputAttributes: {
+          maxlength: "64",
+          autocapitalize: "off",
+          autocorrect: "off",
+        },
+      });
+      const keyBytes = await exportDerivedKey(password, salt);
+      await downloadAndDecrypt(downloadCode, keyBytes);
+      await message("File has been downloaded and decrypted.");
     } catch (error) {
       const errorMessage =
         error instanceof Error
@@ -98,6 +130,12 @@
   {#if $isAuthenticated}
     <h2>Welcome to Secure Share</h2>
     <button onclick={handleUpload}>Upload and Encrypt</button>
+    <input
+      type="text"
+      bind:value={downloadCode}
+      placeholder="Enter share code"
+    />
+    <button onclick={handleDownload}>Download and Decrypt</button>
     {#if shareCode}
       <p>Share Code: {shareCode}</p>
     {/if}

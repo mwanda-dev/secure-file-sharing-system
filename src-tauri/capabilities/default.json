@@ -11,6 +11,8 @@
     "dialog:default",
     "core:event:default",
     "fs:allow-read-file",
+    "fs:allow-write-file",
+    "store:allow-delete",
     "store:allow-load",
     "store:allow-save",
     "store:allow-get",
