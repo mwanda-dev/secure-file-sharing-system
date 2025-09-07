@@ -1,6 +1,6 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
-import { writeFile } from "@tauri-apps/plugin-fs";
+import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { store } from "./+AuthManager";
 
 export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_code: string; encrypted: string }> {
@@ -27,17 +27,15 @@ export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_co
 }
 
 export async function storeAndShare(encrypted: string, share_code: string): Promise<void> {
-    const expiry = Date.now() + 24 * 60 * 60 * 1000;
+    const expiry = Date.now() + 24 * 60 * 60 * 1000;  // 24h
     const metadata = { encrypted, expiry, useCount: 0 };
-
-    await store?.set(`share:${share_code}`, metadata);
-    await store?.save();
-
-    await writeFile({ text: share_code });
+    await store.set(`share:${share_code}`, metadata);
+    await store.save();
+    await write({ text: share_code });
 }
 
 export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Array): Promise<void> {
-    const metadata = await store?.get(`share:${share_code}`);
+    const metadata = await store.get(`share:${share_code}`);
     if (!metadata) throw new Error('Invalid code');
     if (Date.now() > metadata.expiry || metadata.useCount > 0) throw new Error('Expired or used');
 
@@ -48,7 +46,7 @@ export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Arra
     await invoke('write_file', { path: savePath, contents: decrypted });  // Assume fs write command or use fs plugin
 
     metadata.useCount += 1;
-    if (metadata.useCount > 0) await store?.delete(`share:${share_code}`);
-    else await store?.set(`share:${share_code}`, metadata);
-    await store?.save();
+    if (metadata.useCount > 0) await store.delete(`share:${share_code}`);
+    else await store.set(`share:${share_code}`, metadata);
+    await store.save();
 }
