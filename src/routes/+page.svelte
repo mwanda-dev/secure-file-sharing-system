@@ -98,6 +98,8 @@
   async function handleDownload() {
     try {
       const salt = await getStoreValue("auth.salt");
+      if (!salt) throw new Error("Not authenticated - salt not found");
+
       const { value: password } = await Swal.fire({
         title: "Enter your password",
         input: "password",
@@ -109,6 +111,9 @@
           autocorrect: "off",
         },
       });
+
+      if (!password) throw new Error("Password is required for key export");
+
       const keyBytes = await exportDerivedKey(password, salt);
       await downloadAndDecrypt(downloadCode, keyBytes);
       await message("File has been downloaded and decrypted.");
@@ -118,7 +123,7 @@
           ? error.message
           : typeof error === "string"
             ? error
-            : JSON.stringify(error) || "An unknown error has occured";
+            : JSON.stringify(error) || "An unknown error has occurred";
       status = "Error: " + errorMessage;
       await message("Error: " + errorMessage);
     }
