@@ -54,7 +54,7 @@
           ? error.message
           : typeof error === "string"
             ? error
-            : JSON.stringify(error) || "An unknown error has occured";
+            : JSON.stringify(error) || "An unknown error has occurred";
       status = "Error: " + errorMessage;
       await message("Error during auth: " + errorMessage);
     }
@@ -89,7 +89,7 @@
           ? error.message
           : typeof error === "string"
             ? error
-            : JSON.stringify(error) || "An unknown error has occured";
+            : JSON.stringify(error) || "An unknown error has occurred";
       status = "Error: " + errorMessage;
       await message("Error: " + errorMessage);
     }
