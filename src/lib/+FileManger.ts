@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { Store } from "@tauri-apps/plugin-store";
+import { basename } from "@tauri-apps/api/path";
 
 let shareStore: Store | null = null;
 
@@ -13,14 +14,16 @@ async function getShareStore(): Promise<Store> {
     return shareStore;
 }
 
-export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_code: string; encrypted: string }> {
+export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_code: string; encrypted: string, originalFileName: string }> {
     try {
-        const selected = await open({ multiple: false, directory: false }) as string | { path: string } | null;
+        const selected = await open({ multiple: false, directory: false, title: "Select file to send" }) as string | { path: string } | null;
         if (!selected) throw new Error("No file selected");
 
         const path = typeof selected === 'string' ? selected : (selected as { path: string }).path;
         console.log('Encrypting file at path: ', path);
         console.log('Key bytes length: ', keyBytes.length);
+
+        const originalFileName = await basename(path);
 
         const result = await invoke<{ encrypted: string; share_code: string }>('encrypt_file', { path, keyBytes: Array.from(keyBytes) });
 
@@ -28,7 +31,8 @@ export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_co
 
         return {
             encrypted: result.encrypted,
-            share_code: result.share_code
+            share_code: result.share_code,
+            originalFileName
         };
     } catch (error) {
         console.error("Error in uploading and encrypt: ", error);
@@ -36,14 +40,15 @@ export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_co
     }
 }
 
-export async function storeAndShare(encrypted: string, share_code: string): Promise<void> {
+export async function storeAndShare(encrypted: string, share_code: string, originalFileName: string): Promise<void> {
     try {
         const store = await getShareStore();
         const expiry = Date.now() + 24 * 60 * 60 * 1000;
         const metadata = {
             encrypted,
             expiry,
-            useCount: 0
+            useCount: 0,
+            originalFileName: originalFileName
         };
 
         await store.set(`share:${share_code}`, metadata);
@@ -81,8 +86,11 @@ export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Arra
 
         const decryptedBytes = new Uint8Array(result.decrypted);
 
+        const defaultFileName = metadata.originalFileName || "decrypted_file";
+
         const savePath = await save({
-            defaultPath: 'decrypted_file'
+            defaultPath: defaultFileName as string,
+            title: "Save Decrypted File"
         });
 
         if (!savePath) {
@@ -95,7 +103,7 @@ export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Arra
         await store.save();
 
     } catch (error) {
-        console.error("Error in downloading and decrypt: ", error);
+        console.error("Error in downloading and decrypting: ", error);
         throw error;
     }
 }

@@ -76,10 +76,17 @@
           autocorrect: "off",
         },
       });
+
       if (!password) throw new Error("Password is required for key export");
+
       const keyBytes = await exportDerivedKey(password, salt);
       const result = await uploadAndEncrypt(keyBytes);
-      await storeAndShare(result.encrypted, result.share_code);
+      await storeAndShare(
+        result.encrypted,
+        result.share_code,
+        result.originalFileName,
+      );
+
       console.log(result);
       shareCode = result.share_code;
       await message(`File encrypted! Share code: ${shareCode}`);
