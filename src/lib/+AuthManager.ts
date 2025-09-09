@@ -1,5 +1,4 @@
 import { Store } from "@tauri-apps/plugin-store";
-import { expoOut } from "svelte/easing";
 import { get, writable } from "svelte/store";
 
 export const isAuthenticated = writable(false);
