@@ -4,8 +4,16 @@ import { writeText } from "@tauri-apps/plugin-clipboard-manager";
 import { writeFile } from "@tauri-apps/plugin-fs";
 import { Store } from "@tauri-apps/plugin-store";
 import { basename } from "@tauri-apps/api/path";
+import Swal from "sweetalert2";
 
 let shareStore: Store | null = null;
+
+interface ShareMetaData {
+    encrypted: string;
+    expiry: number;
+    useCount: number;
+    originalFileName: string;
+}
 
 async function getShareStore(): Promise<Store> {
     if (!shareStore) {
@@ -62,21 +70,61 @@ export async function storeAndShare(encrypted: string, share_code: string, origi
 
 export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Array): Promise<void> {
     try {
-        const store = await getShareStore();
-        const metadata = await store.get(`share:${share_code}`) as any;
-
-        if (!metadata) {
-            throw new Error('Invalid share code');
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(share_code)) {
+            throw new Error('Invalid share code format');
         }
 
+        let metadata: ShareMetaData | null = null;
+        let fromNetwork = false;
+
+        try {
+            const ip = await promptForIP();
+            const url = `http://${ip}:8080/share/${share_code}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const remoteData = await response.json();
+            metadata = {
+                encrypted: remoteData.encrypted,
+                expiry: Date.now() + 3600 * 1000,
+                useCount: 0,
+                originalFileName: remoteData.original_filename
+            };
+            fromNetwork = true;
+        } catch (networkError) {
+            console.log("Network fetch failed, falling back to local store: ", networkError);
+            const store = await getShareStore();
+            const raw = await store.get(`share:${share_code}`);
+            if (!raw || typeof raw !== 'object') {
+                throw new Error('Invalid or missing share metadata (local)');
+            }
+            const localMeta = raw as Partial<ShareMetaData>;
+            if (!localMeta.encrypted || typeof localMeta.expiry !== 'number' || typeof localMeta.useCount !== 'number') {
+                throw new Error('Corrupted share metadata (local)');
+            }
+            metadata = localMeta as ShareMetaData;
+            fromNetwork = false;
+        }
+
+        if (!metadata) throw new Error('No metadata found');
+
         if (Date.now() > metadata.expiry) {
-            await store.delete(`share:${share_code}`);
-            await store.save();
+            if (!fromNetwork) {
+                const store = await getShareStore();
+                await store.delete(`share:${share_code}`);
+                await store.save();
+            }
             throw new Error('Share code has expired');
         }
 
-        if (metadata.useCount > 0) {
+        if (metadata.useCount >= 1 && !fromNetwork) {
             throw new Error('Share code has already been used');
+        }
+
+        if (!fromNetwork) {
+            const store = await getShareStore();
+            metadata.useCount += 1;
+            await store.set(`share:${share_code}`, metadata);
+            await store.save();
         }
 
         const result = await invoke<{ decrypted: number[] }>('decrypt_file', {
@@ -85,11 +133,10 @@ export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Arra
         });
 
         const decryptedBytes = new Uint8Array(result.decrypted);
-
         const defaultFileName = metadata.originalFileName || "decrypted_file";
 
         const savePath = await save({
-            defaultPath: defaultFileName as string,
+            defaultPath: defaultFileName,
             title: "Save Decrypted File"
         });
 
@@ -99,11 +146,34 @@ export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Arra
 
         await writeFile(savePath, decryptedBytes);
 
-        await store.delete(`share:${share_code}`);
-        await store.save();
+        if (!fromNetwork) {
+            const store = await getShareStore();
+            await store.delete(`share:${share_code}`);
+            await store.save();
+        }
 
     } catch (error) {
         console.error("Error in downloading and decrypting: ", error);
         throw error;
     }
+
+}
+
+async function promptForIP(): Promise<string> {
+    const { value: ip } = await Swal.fire({
+        title: 'Enter Sender IP address',
+        input: 'text',
+        inputLabel: 'IP Address',
+        inputPlaceholder: '192.168.0.1',
+        // inputValue: '127.0.0.1',
+        inputValidator: (value) => {
+            if (!value) return 'IP is required';
+            const ipRegex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+            if (!ipRegex.test(value)) return 'Invalid IP format';
+            return null;
+        }
+    });
+
+    if (!ip) throw new Error('IP address is required');
+    return ip;
 }

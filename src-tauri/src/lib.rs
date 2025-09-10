@@ -2,8 +2,12 @@ use actix_web::{web, App, HttpResponse, HttpServer, Result};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+static SERVER_RUNNING: AtomicBool = AtomicBool::new(false);
 
 type ShareMap = Arc<Mutex<HashMap<String, ShareData>>>;
 
@@ -24,6 +28,7 @@ async fn share_handler(path: web::Path<String>, map: web::Data<ShareMap>) -> Res
             .duration_since(UNIX_EPOCH)
             .unwrap()
             .as_secs();
+
         if now > data.expiry {
             shares.remove(&code);
             return Ok(HttpResponse::NotFound().json("Expired or used"));
@@ -165,26 +170,53 @@ async fn encrypt_file(
     })
 }
 
+#[tauri::command]
+async fn get_local_ip() -> Result<String, String> {
+    use std::net::{SocketAddr, TcpStream};
+
+    let socket = SocketAddr::from(([8, 8, 8, 8], 53));
+    match TcpStream::connect_timeout(&socket, std::time::Duration::from_secs(5)) {
+        Ok(stream) => {
+            if let Ok(addr) = stream.local_addr() {
+                return Ok(addr.ip().to_string());
+            }
+        }
+        Err(_) => {}
+    }
+
+    Ok("127.0.0.1".to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let share_map: ShareMap = Arc::new(Mutex::new(HashMap::new()));
 
     let share_map_for_server = share_map.clone();
 
-    tauri::async_runtime::spawn(async move {
-        if let Err(e) = HttpServer::new(move || {
-            App::new()
-                .app_data(web::Data::new(share_map_for_server.clone()))
-                .route("/share/{code}", web::get().to(share_handler))
-        })
-        .bind("127.0.0.1:8080")
-        .unwrap()
-        .run()
-        .await
-        {
-            eprintln!("Actix server error: {}", e);
-        }
-    });
+    if SERVER_RUNNING
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_ok()
+    {
+        tauri::async_runtime::spawn(async move {
+            let ip = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+            let addr = format!("{}:8080", ip);
+
+            println!("HTTP Server Running on http://{}", addr);
+
+            if let Err(e) = HttpServer::new(move || {
+                App::new()
+                    .app_data(web::Data::new(share_map_for_server.clone()))
+                    .route("/share/{code}", web::get().to(share_handler))
+            })
+            .bind("127.0.0.1:8080")
+            .unwrap()
+            .run()
+            .await
+            {
+                eprintln!("Actix server error: {}", e);
+            }
+        });
+    }
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -192,7 +224,11 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(share_map)
-        .invoke_handler(tauri::generate_handler![encrypt_file, decrypt_file])
+        .invoke_handler(tauri::generate_handler![
+            encrypt_file,
+            decrypt_file,
+            get_local_ip
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -12,6 +12,7 @@
   import { exportDerivedKey, getStoreValue } from "../lib/+AuthManager";
   import Swal from "sweetalert2";
   import { storeAndShare, downloadAndDecrypt } from "$lib/+FileManger";
+  import { getLocalIp } from "../lib/+NetworkUtils";
 
   let title = "Secure File Sharing System";
 
@@ -22,10 +23,13 @@
   let shareCode = $state("");
   let downloadCode = $state("");
 
+  let localIp = $state<string | null>(null);
+
   onMount(async () => {
     await initialiseStore();
     let salt = await store?.get("auth.salt");
     showLogin = !!salt;
+    localIp = await getLocalIp();
   });
 
   async function handleSubmit() {
@@ -150,6 +154,9 @@
     <button onclick={handleDownload}>Download and Decrypt</button>
     {#if shareCode}
       <p>Share Code: {shareCode}</p>
+    {/if}
+    {#if localIp}
+      <p><strong>Your IP adress for sharing</strong></p>
     {/if}
   {:else}
     <h2>{showLogin ? "Login" : "Set Password"}</h2>
