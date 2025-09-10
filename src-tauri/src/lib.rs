@@ -1,4 +1,5 @@
-use actix_web::{web, App, HttpResponse, HttpServer, Result};
+use actix_cors::Cors;
+use actix_web::{http::header, web, App, HttpResponse, HttpServer, Result};
 use base64::Engine;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -205,10 +206,20 @@ pub fn run() {
 
             if let Err(e) = HttpServer::new(move || {
                 App::new()
+                    .wrap(
+                        Cors::default()
+                            .allowed_origin("http://localhost:1420")
+                            .allowed_origin("tauri://localhost")
+                            .allowed_methods(vec!["GET", "POST"])
+                            .allowed_headers(vec![header::AUTHORIZATION, header::ACCEPT])
+                            .allowed_header(header::CONTENT_TYPE)
+                            .max_age(3600)
+                            .supports_credentials(),
+                    )
                     .app_data(web::Data::new(share_map_for_server.clone()))
                     .route("/share/{code}", web::get().to(share_handler))
             })
-            .bind("127.0.0.1:8080")
+            .bind(&addr)
             .unwrap()
             .run()
             .await
