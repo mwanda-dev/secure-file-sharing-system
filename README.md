@@ -5,7 +5,7 @@
 Ensure rust and node are installed: \
 rustc >= 1.89 \
 node >= 20.10 \
-npm >= 9.6 \
+npm >= 9.6 
 
 ### Debian
 Run
@@ -33,12 +33,12 @@ Ensure the xcode developer tools are installed using:
 `xcode-select --intstall`
 
 ## Running the app
-Clone the repository then run: \ 
+Clone the repository then run: 
 `$ npm run tauri build` \
 to build the application for your system. \
 Or: \
 `$npm run tauri dev` \
-to start the development server and view live changes on save \
+to start the development server and view live changes on save
 
 
 ## Recommended IDE Setup.
