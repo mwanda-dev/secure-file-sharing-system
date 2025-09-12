@@ -12,7 +12,7 @@
   import { exportDerivedKey, getStoreValue } from "../lib/+AuthManager";
   import Swal from "sweetalert2";
   import { storeAndShare, downloadAndDecrypt } from "$lib/+FileManger";
-  import { getLocalIp } from "../lib/+NetworkUtils";
+  import { getLocalIp } from "$lib/+NetworkUtils";
 
   let title = "Secure File Sharing System";
 
@@ -157,6 +157,7 @@
     {/if}
     {#if localIp}
       <p><strong>Your IP adress for sharing</strong></p>
+      <p><strong>{localIp}</strong></p>
     {/if}
   {:else}
     <h2>{showLogin ? "Login" : "Set Password"}</h2>
