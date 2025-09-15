@@ -26,9 +26,11 @@ sudo apt install libwebkit2gtk-4.1-dev \
 ### Other Linux Distros
 Check for your distro in [Tauri v2 Quick Start](https://v2.tauri.app/start/prerequisites/#linux)
 
-### Window 10 and Later
-You need the Microsoft C++ Build tools: 
+### Windows 10 and Later
+You need to install the Microsoft C++ Build tools for visual studio 2022: 
 [Microsoft Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
+
+During installation check the “Desktop development with C++” option
 
 ### macOS
 Ensure the Xcode Command Line Tools are installed: 
