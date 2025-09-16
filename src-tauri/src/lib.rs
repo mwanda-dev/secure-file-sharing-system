@@ -18,6 +18,7 @@ struct ShareData {
     expiry: u64,
     use_count: u32,
     original_filename: String,
+    salt: String,
 }
 
 async fn share_handler(path: web::Path<String>, map: web::Data<ShareMap>) -> Result<HttpResponse> {
@@ -45,6 +46,7 @@ async fn share_handler(path: web::Path<String>, map: web::Data<ShareMap>) -> Res
         let response = ShareResponse {
             encrypted: data.encrypted.clone(),
             original_filename: data.original_filename.clone(),
+            salt: data.salt.clone(),
         };
 
         Ok(HttpResponse::Ok().json(response))
@@ -57,12 +59,14 @@ async fn share_handler(path: web::Path<String>, map: web::Data<ShareMap>) -> Res
 struct ShareResponse {
     encrypted: String,
     original_filename: String,
+    salt: String,
 }
 
 #[derive(serde::Serialize)]
 struct EncryptedFileResult {
     encrypted: String,
     share_code: String,
+    salt: Vec<u8>,
 }
 
 #[derive(serde::Serialize)]
@@ -108,6 +112,7 @@ async fn decrypt_file(
 async fn encrypt_file(
     path: String,
     key_bytes: Vec<u8>,
+    salt: Vec<u8>,
     share_map: tauri::State<'_, ShareMap>,
 ) -> Result<EncryptedFileResult, String> {
     use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
@@ -158,6 +163,7 @@ async fn encrypt_file(
         expiry: now + 3600,
         use_count: 0,
         original_filename,
+        salt: base64::engine::general_purpose::STANDARD.encode(&salt),
     };
 
     {
@@ -168,6 +174,7 @@ async fn encrypt_file(
     Ok(EncryptedFileResult {
         encrypted: encrypted_base64,
         share_code,
+        salt,
     })
 }
 

@@ -88,11 +88,12 @@
       if (!password) throw new Error("Password is required for key export");
 
       const keyBytes = await exportDerivedKey(password, salt);
-      const result = await uploadAndEncrypt(keyBytes);
+      const result = await uploadAndEncrypt(keyBytes, salt);
       await storeAndShare(
         result.encrypted,
         result.share_code,
         result.originalFileName,
+        salt,
       );
 
       console.log(result);
@@ -132,8 +133,7 @@
 
       if (!password) throw new Error("Password is required for key export");
 
-      const keyBytes = await exportDerivedKey(password, salt);
-      await downloadAndDecrypt(downloadCode, keyBytes);
+      await downloadAndDecrypt(downloadCode, password);
       downloadCode = "";
       await message("File has been downloaded and decrypted.");
     } catch (error) {

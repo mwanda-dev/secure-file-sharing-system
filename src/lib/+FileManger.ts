@@ -5,6 +5,7 @@ import { writeFile } from "@tauri-apps/plugin-fs";
 import { Store } from "@tauri-apps/plugin-store";
 import { basename } from "@tauri-apps/api/path";
 import Swal from "sweetalert2";
+import { deriveKey } from "./+AuthManager";
 
 let shareStore: Store | null = null;
 
@@ -13,6 +14,7 @@ interface ShareMetaData {
     expiry: number;
     useCount: number;
     originalFileName: string;
+    salt: string;
 }
 
 async function getShareStore(): Promise<Store> {
@@ -22,7 +24,7 @@ async function getShareStore(): Promise<Store> {
     return shareStore;
 }
 
-export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_code: string; encrypted: string, originalFileName: string }> {
+export async function uploadAndEncrypt(keyBytes: Uint8Array, salt: Uint8Array): Promise<{ share_code: string; encrypted: string, originalFileName: string }> {
     try {
         const selected = await open({ multiple: false, directory: false, title: "Select file to send" }) as string | { path: string } | null;
         if (!selected) throw new Error("No file selected");
@@ -30,10 +32,11 @@ export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_co
         const path = typeof selected === 'string' ? selected : (selected as { path: string }).path;
         console.log('Encrypting file at path: ', path);
         console.log('Key bytes length: ', keyBytes.length);
+        console.log('Salt length: ', salt.length);
 
         const originalFileName = await basename(path);
 
-        const result = await invoke<{ encrypted: string; share_code: string }>('encrypt_file', { path, keyBytes: Array.from(keyBytes) });
+        const result = await invoke<{ encrypted: string; share_code: string }>('encrypt_file', { path, keyBytes: Array.from(keyBytes), salt: Array.from(salt) });
 
         console.log('Encryption result: ', result);
 
@@ -48,15 +51,19 @@ export async function uploadAndEncrypt(keyBytes: Uint8Array): Promise<{ share_co
     }
 }
 
-export async function storeAndShare(encrypted: string, share_code: string, originalFileName: string): Promise<void> {
+export async function storeAndShare(encrypted: string, share_code: string, originalFileName: string, salt: Uint8Array): Promise<void> {
     try {
         const store = await getShareStore();
         const expiry = Date.now() + 24 * 60 * 60 * 1000;
+
+        const saltBase64 = btoa(String.fromCharCode(...salt));
+
         const metadata = {
             encrypted,
             expiry,
             useCount: 0,
-            originalFileName: originalFileName
+            originalFileName: originalFileName,
+            salt: saltBase64
         };
 
         await store.set(`share:${share_code}`, metadata);
@@ -68,7 +75,7 @@ export async function storeAndShare(encrypted: string, share_code: string, origi
     }
 }
 
-export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Array): Promise<void> {
+export async function downloadAndDecrypt(share_code: string, password: string): Promise<void> {
     try {
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(share_code)) {
             throw new Error('Invalid share code format');
@@ -87,7 +94,8 @@ export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Arra
                 encrypted: remoteData.encrypted,
                 expiry: Date.now() + 3600 * 1000,
                 useCount: 0,
-                originalFileName: remoteData.original_filename
+                originalFileName: remoteData.original_filename,
+                salt: remoteData.salt
             };
             fromNetwork = true;
         } catch (networkError) {
@@ -126,6 +134,12 @@ export async function downloadAndDecrypt(share_code: string, keyBytes: Uint8Arra
             await store.set(`share:${share_code}`, metadata);
             await store.save();
         }
+
+        const saltBytes = Uint8Array.from(atob(metadata.salt), c => c.charCodeAt(0));
+
+        const key = await deriveKey(password, saltBytes);
+        const exportedKey = await crypto.subtle.exportKey('raw', key);
+        const keyBytes = new Uint8Array(exportedKey);
 
         const result = await invoke<{ decrypted: number[] }>('decrypt_file', {
             encryptedBase64: metadata.encrypted,
