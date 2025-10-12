@@ -5,7 +5,7 @@ import { writeFile } from "@tauri-apps/plugin-fs";
 import { Store } from "@tauri-apps/plugin-store";
 import { basename } from "@tauri-apps/api/path";
 import Swal from "sweetalert2";
-import { deriveKey } from "./+AuthManager";
+import { deriveKey, generateSalt, exportDerivedKey } from "./+AuthManager";
 
 let shareStore: Store | null = null;
 
@@ -24,8 +24,25 @@ async function getShareStore(): Promise<Store> {
     return shareStore;
 }
 
-export async function uploadAndEncrypt(keyBytes: Uint8Array, salt: Uint8Array): Promise<{ share_code: string; encrypted: string, originalFileName: string }> {
+export async function uploadAndEncrypt(): Promise<{ share_code: string; encrypted: string, originalFileName: string }> {
     try {
+        const { value: password } = await Swal.fire({
+            title: "Set encryption password",
+            input: "password",
+            inputLabel: "Password",
+            inputPlaceholder: "Enter password to encrypt file",
+            inputAttributes: {
+                maxlength: "64",
+                autocapitalize: "off",
+                autocorrect: "off",
+            },
+        });
+
+        if (!password) throw new Error("A password is required for encryption");
+
+        const salt = await generateSalt();
+        const keyBytes = await exportDerivedKey(password, salt);
+
         const selected = await open({ multiple: false, directory: false, title: "Select file to send" }) as string | { path: string } | null;
         if (!selected) throw new Error("No file selected");
 
@@ -75,7 +92,7 @@ export async function storeAndShare(encrypted: string, share_code: string, origi
     }
 }
 
-export async function downloadAndDecrypt(share_code: string, password: string): Promise<void> {
+export async function downloadAndDecrypt(share_code: string): Promise<void> {
     try {
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(share_code)) {
             throw new Error('Invalid share code format');
@@ -127,6 +144,21 @@ export async function downloadAndDecrypt(share_code: string, password: string): 
         if (metadata.useCount >= 1 && !fromNetwork) {
             throw new Error('Share code has already been used');
         }
+
+
+        const { value: password } = await Swal.fire({
+            title: "Enter decryption password",
+            input: "password",
+            inputLabel: "Password",
+            inputPlaceholder: "Enter the password used to encrypt this file",
+            inputAttributes: {
+                maxlength: "64",
+                autocapitalize: "off",
+                autocorrect: "off",
+            },
+        });
+
+        if (!password) throw new Error("Password is required for decryption");
 
         if (!fromNetwork) {
             const store = await getShareStore();
