@@ -499,58 +499,6 @@
     font-style: italic;
   }
 
-  .auth-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: calc(100vh - 80px);
-    padding: 2rem;
-  }
-
-  .auth-card {
-    background: var(--pure-white);
-    border-radius: 16px;
-    padding: 3rem 2rem;
-    box-shadow: var(--shadow-lg);
-    max-width: 400px;
-    width: 100%;
-  }
-
-  .auth-icon {
-    font-size: 4rem;
-    margin-bottom: 1.5rem;
-  }
-
-  .auth-card h2 {
-    font-size: 1.75rem;
-    color: var(--text-dark);
-    margin-bottom: 0.75rem;
-    font-weight: 600;
-  }
-
-  .auth-card p {
-    color: var(--dark-grey);
-    margin-bottom: 2rem;
-  }
-
-  .input-container {
-    margin-bottom: 1rem;
-  }
-
-  .status-message {
-    margin-top: 1rem;
-    padding: 0.75rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    background: var(--light-blue);
-    color: var(--dark-blue);
-  }
-
-  .status-message.error {
-    background: #fee2e2;
-    color: var(--error-red);
-  }
-
   .spinner {
     width: 16px;
     height: 16px;
