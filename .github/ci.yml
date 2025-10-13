@@ -11,5 +11,6 @@ jobs:
         with: { node-version: 20 }
       - uses: actions/setup-rust@v1
       - run: npm install
-      - run: npm run tauri build -- --debug  # Test build
-      - run: npm test  # Add Vitest later
+      - run: npm run tauri build -- --debug
+      - run: npm test
+      - run: cd src-tauri && cargo test

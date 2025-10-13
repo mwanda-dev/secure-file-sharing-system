@@ -31,3 +31,8 @@ base64 = "0.22.1"
 tauri-plugin-clipboard-manager = "2.3.0"
 actix-web = "4.11.0"
 actix-cors = "0.7.1"
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+tempfile = "3.23.0"
+tokio-test = "0.4"
